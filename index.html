@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overlord VPN</title>
+    <style>
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .main-screen {
+            background-image: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.2)), 
+                              url('https://i.ibb.co/NdSRPYPf/Screenshot-20260410-213359-1.jpg');
+            background-size: cover; background-position: center;
+            height: 100vh; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; position: relative;
+        }
+
+        .settings-icon {
+            position: absolute; top: 40px; right: 25px; padding: 12px;
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); border-radius: 50%; cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.2); display: flex;
+            justify-content: center; align-items: center; transition: 0.3s; z-index: 5;
+        }
+
+        .glass-button {
+            padding: 24px 80px; font-size: 28px; font-weight: 500; color: white;
+            border-radius: 100px; border: 1px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer; background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); outline: none;
+        }
+
+        /* --- СИСТЕМА НАСТРОЕК (СТЕКЛО) --- */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.2); display: flex;
+            justify-content: center; align-items: center; z-index: 10;
+            opacity: 0; visibility: hidden; transition: 0.3s;
+        }
+        .overlay.open { opacity: 1; visibility: visible; backdrop-filter: blur(20px); }
+
+        .settings-modal {
+            width: 90%; max-width: 380px;
+            background: rgba(255, 255, 255, 0.12); border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2); color: white; overflow: hidden;
+        }
+
+        .settings-header {
+            padding: 20px; font-size: 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .category-title { padding: 20px 20px 5px 20px; font-size: 13px; color: #8db5ff; text-transform: uppercase; font-weight: bold; }
+        .setting-row { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .setting-value { color: #8db5ff; font-weight: 500; font-size: 14px; }
+
+        /* --- ДИАЛОГ DNS --- */
+        .dns-dialog-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center;
+            z-index: 20; opacity: 0; visibility: hidden; transition: 0.2s;
+        }
+        .dns-dialog-overlay.active { opacity: 1; visibility: visible; }
+        .dns-dialog {
+            width: 300px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(40px);
+            border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.2); padding: 24px; color: white;
+        }
+        .dns-input { width: 100%; background: none; border: none; border-bottom: 2px solid #5c8aff; color: white; font-size: 18px; padding: 8px 0; outline: none; margin-bottom: 25px; }
+        .dns-actions { display: flex; justify-content: flex-end; gap: 15px; }
+        .dns-actions button { background: none; border: none; color: #8db5ff; font-weight: 600; cursor: pointer; text-transform: uppercase; }
+
+        .close-btn { background: none; border: none; color: white; font-size: 28px; cursor: pointer; }
+        .footer-text { position: absolute; bottom: 20px; font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+
+<div class="main-screen">
+    <div class="settings-icon" id="openSettings">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.21.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z""")/>>
+        </svg>
+    </div>
+
+    <!-- Модалка настроек -->
+    <div class="overlay" id="settingsOverlay">
+        <div class="settings-modal">
+            <div class="settings-header">
+                <span>Settings</span>
+                <button class="close-btn" id="closeSettings">&times;</button>
+            </div>
+            <div class="settings-list">
+                <div class="category-title">General</div>
+                <div class="setting-row" id="dnsRow">
+                    <span>DNS</span>
+                    <span class="setting-value" id="dnsVal">1.1.1.1</span>
+                </div>
+                <div class="category-title">About</div>
+                <div class="setting-row">
+                    <span>Version</span>
+                    <span class="setting-value">1.0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Диалог DNS -->
+    <div class="dns-dialog-overlay" id="dnsOverlay">
+        <div class="dns-dialog">
+            <h3 style="margin-top:0; font-weight:500">DNS</h3>
+            <input type="text" class="dns-input" id="dnsInput" value="1.1.1.1">
+            <div class="dns-actions">
+                <button id="dnsCancel">ОТМЕНИТЬ</button>
+                <button id="dnsOk">ОК</button>
+            </div>
+        </div>
+    </div>
+
+    <button class="glass-button" id="mainBtn">Подключить</button>
+    <div class="footer-text">by @ycleb</div>
+</div>
+
+<script>
+    const btn = document.getElementById('mainBtn');
+    const overlay = document.getElementById('settingsOverlay');
+    const dnsOverlay = document.getElementById('dnsOverlay');
+    const dnsVal = document.getElementById('dnsVal');
+    const dnsInput = document.getElementById('dnsInput');
+
+    // Логика кнопки подключения
+    btn.onclick = () => {
+        if (btn.innerText === 'Подключить') {
+            btn.innerText = 'Отключить';
+            btn.style.color = '#ff4d4d'; 
+        } else {
+            btn.innerText = 'Подключить';
+            btn.style.color = 'white';
+        }
+    };
+
+    // Навигация
+    document.getElementById('openSettings').onclick = () => overlay.classList.add('open');
+    document.getElementById('closeSettings').onclick = () => overlay.classList.remove('open');
+    
+    // Работа с DNS
+    document.getElementById('dnsRow').onclick = () => {
+        dnsInput.value = dnsVal.innerText;
+        dnsOverlay.classList.add('active');
+    };
+
+    document.getElementById('dnsCancel').onclick = () => dnsOverlay.classList.remove('active');
+    
+    document.getElementById('dnsOk').onclick = () => {
+        dnsVal.innerText = dnsInput.value;
+        dnsOverlay.classList.remove('active');
+    };
+
+    // Закрытие при клике на фон
+    overlay.onclick = (e) => { if(e.target === overlay) overlay.classList.remove('open'); };
+</script>
+
+</body>
+</html>
